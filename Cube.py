@@ -1,0 +1,248 @@
+import math
+import pygame
+import random
+from RubixCube import RubixCube
+
+
+class Node:
+    def __init__(self, x: int, y: int, z: int):
+        self.x = x
+        self.y = y
+        self.z = z
+
+    def is_connected(self, other, distance):
+        if abs(self.x + self.y + self.z - other.x - other.y - other.z) == distance:
+            equal = 0
+            if self.x == other.x:
+                equal += 1
+            if self.y == other.y:
+                equal += 1
+            if self.z == other.z:
+                equal += 1
+            return equal == 2
+
+
+class Edge:
+    def __init__(self, start: Node, stop: Node):
+        self.start = start
+        self.stop = stop
+
+class Rectangle:
+    def __init__(self, a: Node, b: Node, c: Node, d: Node, col: int):
+        self.a = a
+        self.b = b
+        self.c = c
+        self.d = d
+        self.color = col
+
+    def mean_z(self):
+        return (self.a.z + self.b.z + self.c.z + self.d.z) / 4
+
+
+class Wireframe:
+    def __init__(self):
+        self.nodes: [Node] = []
+        self.edges: [Edge] = []
+
+    def add_nodes(self, node_list: [(int, int, int)]):
+        for (x, y, z) in node_list:
+            self.nodes.append(Node(x, y, z))
+
+    def add_edges(self, edge_list):
+        for (start, stop) in edge_list:
+            self.edges.append(Edge(self.nodes[start], self.nodes[stop]))
+
+    def outputNodes(self):
+        print("\n --- Nodes --- ")
+        for i, node in enumerate(self.nodes):
+            print(" %d: (%.2f, %.2f, %.2f)" % (i+1, node.x, node.y, node.z))
+
+    def outputEdges(self):
+        print("\n --- Edges --- ")
+        for i, edge in enumerate(self.edges):
+            print(" %d: (%.2f, %.2f, %.2f)" % (i+1, edge.start.x, edge.start.y, edge.start.z), end="")
+            print("to (%.2f, %.2f, %.2f)" % (edge.stop.x, edge.stop.y, edge.stop.z))
+
+
+    def translate(self, axis, d):
+        """ Translate each node of a wireframe by d along a given axis. """
+
+        if axis in ['x', 'y', 'z']:
+            for node in self.nodes:
+                setattr(node, axis, getattr(node, axis) + d)
+
+    def find_center(self):
+        """ Find the center of the wireframe. """
+        num_nodes = len(self.nodes)
+        meanX = sum([node.x for node in self.nodes]) / num_nodes
+        meanY = sum([node.y for node in self.nodes]) / num_nodes
+        meanZ = sum([node.z for node in self.nodes]) / num_nodes
+        return (meanX, meanY, meanZ)
+
+    def scale(self, scale):
+        center = self.find_center()
+        for node in self.nodes:
+            node.x = center[0] + scale * (node.x - center[0])
+            node.y = center[1] + scale * (node.y - center[1])
+            node.z = center[2] + scale * (node.z - center[2])
+
+    def rotate_z(self, radians):
+        center = self.find_center()
+        for node in self.nodes:
+            x = node.x - center[0]
+            y = node.y - center[1]
+            d = math.hypot(y, x)
+            theta = math.atan2(y, x) + radians
+            node.x = center[0] + d * math.cos(theta)
+            node.y = center[1] + d * math.sin(theta)
+
+    def rotate_y(self, radians):
+        center = self.find_center()
+        for node in self.nodes:
+            x = node.x - center[0]
+            z = node.z - center[2]
+            d = math.hypot(x, z)
+            theta = math.atan2(z, x) + radians
+            node.x = center[0] + d * math.cos(theta)
+            node.z = center[2] + d * math.sin(theta)
+
+    def rotate_x(self, radians):
+        center = self.find_center()
+        for node in self.nodes:
+            y = node.y - center[1]
+            z = node.z - center[2]
+            d = math.hypot(y, z)
+            theta = math.atan2(z, y) + radians
+            node.y = center[1] + d * math.cos(theta)
+            node.z = center[2] + d * math.sin(theta)
+
+
+class Cube(Wireframe):
+    def __init__(self, rubix_cube: RubixCube):
+        super().__init__()
+        self.rubix = rubix_cube
+        self.graphic_cube = []
+        # for z in range(0, 4):
+        #     for x in range(0, 4):
+        #         for y in range(0, 4):
+        #             if x == 0 or x == 3 or y == 0 or y == 3 or z == 0 or z == 3:
+        #                 self.nodes.append(Node(x, y, z))
+        # # cube_edges = [(n, n + 4) for n in range(0, 4)]
+        # # cube_edges.extend([(n, n + 1) for n in range(0, 8, 2)])
+        # # cube_edges.extend([(n, n + 2) for n in (0, 1, 4, 5)])
+        # for n1 in range(len(self.nodes)):
+        #     for n2 in range(n1+1, len(self.nodes)):
+        #         if self.nodes[n1].is_connected(self.nodes[n2], 1):
+        #             self.edges.append(Edge(self.nodes[n1], self.nodes[n2]))
+
+        self.faces = []
+        self.construct()
+        self.scale(50)
+        self.translate("x", 200)
+        self.translate("y", 300)
+        self.rotate_x(-0.15)
+        self.rotate_y(0.75)
+
+    def construct(self):
+        self.graphic_cube = []
+
+        # face = 1
+        x = 0
+        rects: list[list[Rectangle]] = [[], [], []]
+        for z in range(0, 3):
+            for y in range(0, 3):
+                rects[z].append(Rectangle(Node(x, y, z), Node(x, y, z+1), Node(x, y+1, z+1), Node(x, y+1, z),
+                                          self.rubix.cube[0][y][z]))
+        self.graphic_cube.append(rects)
+        # face = 2
+        y = 3
+        rects: list[list[Rectangle]] = [[], [], []]
+        for z in range(0, 3):
+            for x in range(0, 3):
+                rects[z].append(
+                    Rectangle(Node(x, y, z), Node(x+1, y, z), Node(x+1, y, z + 1), Node(x, y, z+1),
+                              self.rubix.cube[1][z][x]))
+        self.graphic_cube.append(rects)
+        # face = 3
+        x = 3
+        rects: list[list[Rectangle]] = [[], [], []]
+        for z in range(0, 3):
+            for y in range(1, 4).__reversed__():
+                rects[z].append(Rectangle(Node(x, y, z), Node(x, y, z + 1), Node(x, y - 1, z + 1), Node(x, y - 1, z),
+                                          self.rubix.cube[2][z][3-y]))
+        self.graphic_cube.append(rects)
+        # face = 4
+        y = 0
+        rects: list[list[Rectangle]] = [[], [], []]
+        for z in range(0, 3):
+            for x in range(1, 4).__reversed__():
+                rects[z].append(
+                    Rectangle(Node(x, y, z), Node(x - 1, y, z), Node(x - 1, y, z + 1), Node(x, y, z + 1),
+                              self.rubix.cube[3][z][3-x]))
+        self.graphic_cube.append(rects)
+        # face = 5
+        z = 0
+        rects: list[list[Rectangle]] = [[], [], []]
+        for y in range(0, 3):
+            for x in range(0, 3):
+                rects[y].append(
+                    Rectangle(Node(x, y, z), Node(x + 1, y, z), Node(x + 1, y + 1, z), Node(x, y + 1, z),
+                              self.rubix.cube[4][y][x]))
+        self.graphic_cube.append(rects)
+        # face = 6
+        z = 3
+        rects: list[list[Rectangle]] = [[], [], []]
+        for y in range(1, 4).__reversed__():
+            for x in range(0, 3):
+                rects[3-y].append(
+                    Rectangle(Node(x, y, z), Node(x + 1, y, z), Node(x + 1, y - 1, z), Node(x, y - 1, z),
+                              self.rubix.cube[5][3-y][x]))
+        self.graphic_cube.append(rects)
+        for side in self.graphic_cube:
+            for row in side:
+                for square in row:
+                    self.faces.append(square)
+                    self.nodes.extend([square.a, square.b, square.c, square.d])
+        self.update_colors()
+
+    def update_colors(self):
+        for f in range(len(self.graphic_cube)):
+            for x in range(len(self.graphic_cube[f])):
+                for y in range(len(self.graphic_cube[f][x])):
+                    self.graphic_cube[f][x][y].color = self.rubix.cube[f][x][y]
+
+    def add_faces(self, face_list: [(int, int, int, int)]):
+        col = 0
+        for (a, b, c, d) in face_list:
+            self.faces.append(Rectangle(self.nodes[a], self.nodes[b], self.nodes[c], self.nodes[d], col))
+            col += 1
+
+    def rotate_x(self, radians):
+        super().rotate_x(radians)
+        self.sort_faces()
+
+    def rotate_y(self, radians):
+        super().rotate_y(radians)
+        self.sort_faces()
+
+    def sort_faces(self):
+        self.faces = sorted(self.faces, key=key)
+
+
+def key(rec: Rectangle):
+    return rec.mean_z()
+
+
+if __name__ == "__main__":
+    cube_nodes = [(x, y, z) for x in (0, 3) for y in (0, 3) for z in (0, 3)]
+    cube_edges = [(n, n + 4) for n in range(0, 4)]
+    cube_edges.extend([(n, n + 1) for n in range(0, 8, 2)])
+    cube_edges.extend([(n, n + 2) for n in (0, 1, 4, 5)])
+    cube_edges.extend([])
+    frame = Wireframe()
+    frame.add_nodes(cube_nodes)
+    frame.add_edges(cube_edges)
+    frame.outputNodes()
+    frame.outputEdges()
+
+
