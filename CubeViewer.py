@@ -1,68 +1,37 @@
-import math
 import pygame
-from Cube import Wireframe, Cube
+from Cube import Cube
 from RubixCube import RubixCube
+from Bot import random_move, WhiteCrossBot
 
+notation = {"r", "l", "u", "d", "f", "b", "m", "e", "s"}
 
 key_to_function = {
-            pygame.K_LEFT: (lambda x: x.translate_all('x', -10)),
-            pygame.K_RIGHT: (lambda x: x.translate_all('x', 10)),
-            pygame.K_DOWN: (lambda x: x.translate_all('y', 10)),
-            pygame.K_UP: (lambda x: x.translate_all('y', -10)),
-            pygame.K_EQUALS: (lambda x: x.scale_all(1.25)),
-            pygame.K_MINUS: (lambda x: x.scale_all(0.8)),
-            pygame.K_z: (lambda x: x.rotate_all_z(0.3)),
-            pygame.K_y: (lambda x: x.rotate_all_y(0.3)),
-            pygame.K_x: (lambda x: x.rotate_all_x(0.3)),
-            pygame.K_o: (lambda x: x.wireframes["Cube"].outputNodes()),
-            pygame.K_0: (lambda x: x.wireframes["Cube"].rubix.rotate_clockwise(0)),
-            pygame.K_1: (lambda x: x.wireframes["Cube"].rubix.rotate_clockwise(1)),
-            pygame.K_2: (lambda x: x.wireframes["Cube"].rubix.rotate_clockwise(2)),
-            pygame.K_3: (lambda x: x.wireframes["Cube"].rubix.rotate_clockwise(3)),
-            pygame.K_4: (lambda x: x.wireframes["Cube"].rubix.rotate_clockwise(4)),
-            pygame.K_5: (lambda x: x.wireframes["Cube"].rubix.rotate_clockwise(5)),
-            # pygame.K_6: (lambda x: x.wireframes["Cube"].rubix.rotate_clockwise(6)),
-            # pygame.K_7: (lambda x: x.wireframes["Cube"].rubix.rotate_clockwise(7)),
-            pygame.K_s: (lambda x: x.wireframes["Cube"].rubix.scramble()),
-            pygame.K_p: (lambda x: print(x.wireframes["Cube"].rubix))}
-
-opp_key_to_function = {
-            pygame.K_LEFT: (lambda x: x.translate_all('x', -10)),
-            pygame.K_RIGHT: (lambda x: x.translate_all('x', 10)),
-            pygame.K_DOWN: (lambda x: x.translate_all('y', 10)),
-            pygame.K_UP: (lambda x: x.translate_all('y', -10)),
-            pygame.K_EQUALS: (lambda x: x.scale_all(1.25)),
-            pygame.K_MINUS: (lambda x: x.scale_all(0.8)),
-            pygame.K_z: (lambda x: x.rotate_all_z(-0.3)),
-            pygame.K_y: (lambda x: x.rotate_all_y(-0.3)),
-            pygame.K_x: (lambda x: x.rotate_all_x(-0.3)),
-            pygame.K_o: (lambda x: x.wireframes["Cube"].outputNodes()),
-            pygame.K_0: (lambda x: x.wireframes["Cube"].rubix.rotate_counter_clockwise(0)),
-            pygame.K_1: (lambda x: x.wireframes["Cube"].rubix.rotate_counter_clockwise(1)),
-            pygame.K_2: (lambda x: x.wireframes["Cube"].rubix.rotate_counter_clockwise(2)),
-            pygame.K_3: (lambda x: x.wireframes["Cube"].rubix.rotate_counter_clockwise(3)),
-            pygame.K_4: (lambda x: x.wireframes["Cube"].rubix.rotate_counter_clockwise(4)),
-            pygame.K_5: (lambda x: x.wireframes["Cube"].rubix.rotate_counter_clockwise(5)),
-            # pygame.K_6: (lambda x: x.wireframes["Cube"].rubix.rotate_clockwise(6)),
-            # pygame.K_7: (lambda x: x.wireframes["Cube"].rubix.rotate_clockwise(7)),
-            pygame.K_s: (lambda x: x.wireframes["Cube"].rubix.scramble()),
-            pygame.K_p: (lambda x: print(x.wireframes["Cube"].rubix))}
+            pygame.K_LEFT: (lambda x: x.cube.translate('x', -10)),
+            pygame.K_RIGHT: (lambda x: x.cube.translate('x', 10)),
+            pygame.K_DOWN: (lambda x: x.cube.translate('y', 10)),
+            pygame.K_UP: (lambda x: x.cube.translate('y', -10)),
+            pygame.K_EQUALS: (lambda x: x.cube.scale(1.25)),
+            pygame.K_MINUS: (lambda x: x.cube.scale(0.8)),
+            pygame.K_q: (lambda x: x.cube.rubix.scramble()),
+            pygame.K_p: (lambda x: print(x.cube))}
 
 
-NUM_TO_COLOR = {1: (200, 0, 0), 2: (200, 200, 200), 3: (200, 100, 0), 4: (200, 200, 0),
-                5: (0, 200, 0), 6: (0, 0, 200)}
+NUM_TO_COLOR = {1: (0, 0, 200), 2: (200, 0, 0), 3: (0, 200, 0), 4: (200, 100, 0),
+                5: (200, 200, 200), 6: (200, 200, 0)}
 
 FPS = 10
 CLOCK = pygame.time.Clock()
 
-class CubeViewer():
-    def __init__(self, width, height):
+bot = WhiteCrossBot()
+
+class CubeViewer:
+    def __init__(self, width, height, cube):
         self.width = width
         self.height = height
         self.screen = pygame.display.set_mode((width, height))
-        pygame.display.set_caption('Wireframe Display')
+        pygame.display.set_caption('Rubix Cube')
         self.background = (10, 10, 50)
-        self.wireframes = {}
+        self.cube: Cube = cube
         self.nodeColour = (255, 255, 255)
         self.edgeColour = (200, 200, 200)
         self.faceColor = (200, 0, 0)
@@ -71,11 +40,6 @@ class CubeViewer():
         self.displayNodes = False
         self.displayEdges = False
         self.borders = True
-        self.function_list = key_to_function
-
-    def addWireframe(self, name, wireframe):
-        """ Add a named wireframe object. """
-        self.wireframes[name] = wireframe
 
     def run(self):
         """ Create a pygame screen until it is closed. """
@@ -85,14 +49,21 @@ class CubeViewer():
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
+
                 elif event.type == pygame.KEYDOWN:
-                    if event.key in self.function_list:
-                        self.function_list[event.key](self)
-                    if event.key == pygame.K_c:
-                        self.function_list = opp_key_to_function
-                elif event.type == pygame.KEYUP:
-                    if event.key == pygame.K_c:
-                        self.function_list = key_to_function
+                    if event.unicode in notation:
+                        self.cube.make_move(event.unicode, not pygame.key.get_pressed()[pygame.K_c])
+                    elif event.unicode == "x" or event.unicode == "y" or event.unicode == "z":
+                        if event.unicode == "x":
+                            self.cube.rotate_cube_x(not pygame.key.get_pressed()[pygame.K_c])
+                        elif event.unicode == "y":
+                            self.cube.rotate_cube_y(not pygame.key.get_pressed()[pygame.K_c])
+                        elif event.unicode == "z":
+                            self.cube.rotate_cube_z(not pygame.key.get_pressed()[pygame.K_c])
+                    elif event.unicode == "1":
+                        self.cube.rubix.step(bot.white_cross_move(self.cube.rubix))
+                    elif event.key in key_to_function:
+                        key_to_function[event.key](self)
 
             self.display()
             pygame.display.flip()
@@ -100,48 +71,25 @@ class CubeViewer():
     def display(self):
         """ Draw the wireframes on the screen. """
         self.screen.fill(self.background)
-        if "Cube" in self.wireframes.keys():
-            self.wireframes["Cube"].update_colors()
-        for wireframe in self.wireframes.values():
-            if self.displayEdges:
-                for edge in wireframe.edges:
-                    pygame.draw.aaline(self.screen, self.edgeColour, (edge.start.x, edge.start.y),
-                                       (edge.stop.x, edge.stop.y), 5)
+        self.cube.update_colors()
+        if self.displayEdges:
+            for edge in self.cube.edges:
+                pygame.draw.aaline(self.screen, self.edgeColour, (edge.start.x, edge.start.y),
+                                   (edge.stop.x, edge.stop.y), 5)
 
-            if self.displayNodes:
-                for node in wireframe.nodes:
-                    pygame.draw.circle(self.screen, self.nodeColour, (int(node.x), int(node.y)), self.nodeRadius, 0)
+        if self.displayNodes:
+            for node in self.cube.nodes:
+                pygame.draw.circle(self.screen, self.nodeColour, (int(node.x), int(node.y)), self.nodeRadius, 0)
 
-            if self.displayFaces:
-                for face in wireframe.faces:
-                    if self.borders:
-                        draw_styled_rect(self.screen, NUM_TO_COLOR[face.color], [(face.a.x, face.a.y), (face.b.x, face.b.y), (face.c.x, face.c.y), (face.d.x, face.d.y)])
-                    else:
-                        pygame.draw.polygon(self.screen, NUM_TO_COLOR[face.color], [(face.a.x, face.a.y), (face.b.x, face.b.y), (face.c.x, face.c.y), (face.d.x, face.d.y)])
+        if self.displayFaces:
+            for face in self.cube.faces:
+                if self.borders:
+                    draw_styled_rect(self.screen, NUM_TO_COLOR[face.color], [(face.a.x, face.a.y), (face.b.x, face.b.y), (face.c.x, face.c.y), (face.d.x, face.d.y)])
+                else:
+                    pygame.draw.polygon(self.screen, NUM_TO_COLOR[face.color], [(face.a.x, face.a.y), (face.b.x, face.b.y), (face.c.x, face.c.y), (face.d.x, face.d.y)])
 
-    def translate_all(self, axis, d):
-        """ Translate all wireframes along a given axis by d units. """
-        for wireframe in self.wireframes.values():
-            wireframe.translate(axis, d)
 
-    def scale_all(self, scale):
-        """ Scale all wireframes by a given scale, centred on the centre of the screen. """
-        for wireframe in self.wireframes.values():
-            wireframe.scale(scale)
-
-    def rotate_all_z(self, radians):
-        for wireframe in self.wireframes.values():
-            wireframe.rotate_z(radians)
-
-    def rotate_all_y(self, radians):
-        for wireframe in self.wireframes.values():
-            wireframe.rotate_y(radians)
-
-    def rotate_all_x(self, radians):
-        for wireframe in self.wireframes.values():
-            wireframe.rotate_x(radians)
-
-def draw_styled_rect(screen, color, points, bwidth = 3):
+def draw_styled_rect(screen, color, points, bwidth=3):
     pygame.draw.polygon(screen, pygame.Color("black"),
                         points)
     pygame.draw.polygon(screen, color, [(points[0][0]-bwidth, points[0][1]-bwidth), (points[1][0]-bwidth, points[1][1]-bwidth),
@@ -149,16 +97,15 @@ def draw_styled_rect(screen, color, points, bwidth = 3):
 
 
 if __name__ == '__main__':
-    pv = CubeViewer(500, 600)
-    rubix = RubixCube()
+
     # rubix.cube[3] = [[1, 2, 3],
     #              [6, 5, 1],
     #              [5, 3, 4]]
     # rubix.rotate_clockwise(1)
     # rubix.scramble()
-    cube = Cube(rubix)
+    pv = CubeViewer(500, 600, Cube(RubixCube()))
 
     # cube.outputNodes()
     # cube.outputEdges()
-    pv.addWireframe("Cube", cube)
+
     pv.run()

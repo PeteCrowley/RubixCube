@@ -3,6 +3,9 @@ import pygame
 import random
 from RubixCube import RubixCube
 
+X_ROT_VAL = -0.3
+Y_ROT_VAL = 0.4
+
 
 class Node:
     def __init__(self, x: int, y: int, z: int):
@@ -27,6 +30,7 @@ class Edge:
         self.start = start
         self.stop = stop
 
+
 class Rectangle:
     def __init__(self, a: Node, b: Node, c: Node, d: Node, col: int):
         self.a = a
@@ -37,6 +41,12 @@ class Rectangle:
 
     def mean_z(self):
         return (self.a.z + self.b.z + self.c.z + self.d.z) / 4
+
+    def mean_x(self):
+        return (self.a.x + self.b.x + self.c.x + self.d.x) / 4
+
+    def mean_y(self):
+        return (self.a.y + self.b.y + self.c.y + self.d.y) / 4
 
 
 class Wireframe:
@@ -122,26 +132,14 @@ class Cube(Wireframe):
         super().__init__()
         self.rubix = rubix_cube
         self.graphic_cube = []
-        # for z in range(0, 4):
-        #     for x in range(0, 4):
-        #         for y in range(0, 4):
-        #             if x == 0 or x == 3 or y == 0 or y == 3 or z == 0 or z == 3:
-        #                 self.nodes.append(Node(x, y, z))
-        # # cube_edges = [(n, n + 4) for n in range(0, 4)]
-        # # cube_edges.extend([(n, n + 1) for n in range(0, 8, 2)])
-        # # cube_edges.extend([(n, n + 2) for n in (0, 1, 4, 5)])
-        # for n1 in range(len(self.nodes)):
-        #     for n2 in range(n1+1, len(self.nodes)):
-        #         if self.nodes[n1].is_connected(self.nodes[n2], 1):
-        #             self.edges.append(Edge(self.nodes[n1], self.nodes[n2]))
 
         self.faces = []
         self.construct()
-        self.scale(50)
-        self.translate("x", 200)
+        self.translate("x", 250)
         self.translate("y", 300)
-        self.rotate_x(-0.15)
-        self.rotate_y(0.75)
+        self.scale(50)
+        self.rotate_y(Y_ROT_VAL)
+        self.rotate_x(X_ROT_VAL)
 
     def construct(self):
         self.graphic_cube = []
@@ -226,11 +224,150 @@ class Cube(Wireframe):
         self.sort_faces()
 
     def sort_faces(self):
-        self.faces = sorted(self.faces, key=key)
+        self.faces = sorted(self.faces, key=key_z)
+
+    def get_face_by_location(self, loc: str) -> int:
+        target_square = None
+        if loc == "r":
+            target_square = max(self.faces, key=key_x)
+        elif loc == "l":
+            target_square = target_square = min(self.faces, key=key_x)
+        elif loc == "f":
+            target_square = target_square = max(self.faces, key=key_z)
+        elif loc == "b":
+            target_square = target_square = min(self.faces, key=key_z)
+        elif loc == "d":
+            target_square = target_square = max(self.faces, key=key_y)
+        elif loc == "u":
+            target_square = target_square = min(self.faces, key=key_y)
+        face = 0
+        for f in range(len(self.graphic_cube)):
+            for row in self.graphic_cube[f]:
+                for square in row:
+                    if square is target_square:
+                        face = f
+        return face
+
+    def rotate_cube_y(self, clockwise: bool):
+        self.rotate_x(-X_ROT_VAL)
+        if clockwise:
+            self.rotate_y(math.pi / 2)
+        else:
+            self.rotate_y(-math.pi / 2)
+        self.rotate_x(X_ROT_VAL)
+
+    def rotate_cube_x(self, clockwise: bool):
+        self.rotate_x(-X_ROT_VAL)
+        self.rotate_y(-Y_ROT_VAL)
+        if clockwise:
+            self.rotate_x(math.pi/2)
+        else:
+            self.rotate_x(-math.pi/2)
+        self.rotate_y(Y_ROT_VAL)
+        self.rotate_x(X_ROT_VAL)
+
+    def rotate_cube_z(self, clockwise: bool):
+        self.rotate_x(-X_ROT_VAL)
+        self.rotate_y(-Y_ROT_VAL)
+        if clockwise:
+            self.rotate_z(math.pi / 2)
+        else:
+            self.rotate_z(-math.pi / 2)
+        self.rotate_y(Y_ROT_VAL)
+        self.rotate_x(X_ROT_VAL)
+
+    def make_move(self, notation: str, clockwise: bool):
+        if notation not in ("m", "e", "s"):
+            if clockwise:
+                self.rubix.rotate_clockwise(self.get_face_by_location(notation))
+            else:
+                self.rubix.rotate_counter_clockwise(self.get_face_by_location(notation))
+        else:
+            front_face = self.get_face_by_location("f")
+            top_face = self.get_face_by_location("u")
+            face_num = None
+            if notation == "m":
+                if front_face == 0 or front_face == 2:
+                    if top_face == 1 or top_face == 3:
+                        face_num = 7
+                    elif top_face == 4 or top_face == 5:
+                        face_num = 8
+                    if top_face == 1 or top_face == 5:
+                        if front_face == 0:
+                            clockwise = not clockwise
+                    elif front_face == 2:
+                        clockwise = not clockwise
+                elif front_face == 1 or front_face == 3:
+                    if top_face == 0 or top_face == 2:
+                        face_num = 7
+                    elif top_face == 4 or top_face == 5:
+                        face_num = 6
+                    if top_face == 2 or top_face == 4:
+                        if front_face == 1:
+                            clockwise = not clockwise
+                    elif front_face == 3:
+                        clockwise = not clockwise
+                elif front_face == 4 or front_face == 5:
+                    if top_face == 0 or top_face == 2:
+                        face_num = 8
+                    elif top_face == 1 or top_face == 3:
+                        face_num = 6
+                    if top_face == 2 or top_face == 1:
+                        if front_face == 5:
+                            clockwise = not clockwise
+                    elif front_face == 4:
+                        clockwise = not clockwise
+            if notation == "e":
+                if front_face == 0 or front_face == 2:
+                    if top_face == 1 or top_face == 3:
+                        face_num = 8
+                    elif top_face == 4 or top_face == 5:
+                        face_num = 7
+                    if top_face == 4 or top_face == 1:
+                        clockwise = not clockwise
+                elif front_face == 1 or front_face == 3:
+                    if top_face == 0 or top_face == 2:
+                        face_num = 6
+                    elif top_face == 4 or top_face == 5:
+                        face_num = 7
+                    if top_face == 0 or top_face == 4:
+                        clockwise = not clockwise
+                elif front_face == 4 or front_face == 5:
+                    if top_face == 0 or top_face == 2:
+                        face_num = 6
+                    elif top_face == 1 or top_face == 3:
+                        face_num = 8
+                    if top_face == 0 or top_face == 1:
+                        clockwise = not clockwise
+            if notation == "s":
+                if front_face == 0 or front_face == 2:
+                    face_num = 6
+                    if front_face == 2:
+                        clockwise = not clockwise
+                elif front_face == 1 or front_face == 3:
+                    face_num = 8
+                    if front_face == 3:
+                        clockwise = not clockwise
+                elif front_face == 4 or front_face == 5:
+                    face_num = 7
+                    if front_face == 5:
+                        clockwise = not clockwise
+            if clockwise:
+                self.rubix.rotate_clockwise(face_num)
+            else:
+                self.rubix.rotate_counter_clockwise(face_num)
 
 
-def key(rec: Rectangle):
+def key_z(rec: Rectangle):
     return rec.mean_z()
+
+
+def key_y(rec: Rectangle):
+    return rec.mean_y()
+
+
+def key_x(rec: Rectangle):
+    return rec.mean_x()
 
 
 if __name__ == "__main__":
